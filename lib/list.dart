@@ -1,54 +1,123 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:flutter1/home.dart';
+import 'package:flutter1/main.dart';
 import 'package:flutter1/modal_pay_adapter.dart';
+import 'package:flutter1/time.dart';
+import 'package:flutter1/user_info.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_sticky_header/flutter_sticky_header.dart';
 import 'package:flutter1/detail.dart';
 
-class TransactionHistoryScreen extends StatelessWidget {
-  const TransactionHistoryScreen({super.key});
+class TransactionHistoryScreen extends StatefulWidget {
+  TransactionHistoryScreen({super.key, required this.time});
+  Time? time;
+  @override
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
+}
+
+class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
+  UserInfo? userInfo;
+  Future<void> _loadUserInfo() async {
+    UserInfo? info = await getUserInfo();
+    setState(() {
+      // WidgetsBinding.instance.addPostFrameCallback((_) {
+      //   showLoadingAndNavigate(context);
+      // });
+      userInfo = info;
+    });
+  }
+
+  Future<void> showLoadingAndNavigate(BuildContext context) async {
+    // Thời gian delay ngẫu nhiên từ 1 đến 2 giây
+    final randomDelay = Random().nextInt(1000) + 1000; // Từ 1000ms -> 2000ms
+
+    // Hiển thị loading
+    showDialog(
+      context: context,
+      barrierDismissible:
+          false, // Không cho phép tắt loading bằng cách nhấn ra ngoài
+      builder: (context) {
+        return Stack(
+          children: [
+            // Nền che mờ
+            Positioned.fill(
+              child: Container(
+                color: Colors.transparent,
+              ),
+            ),
+            // Hiệu ứng loading
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  RotatingAndScalingEffect(),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Chờ trong thời gian ngẫu nhiên
+    await Future.delayed(Duration(milliseconds: randomDelay));
+
+    // Tắt hộp thoại loading
+    if (context.mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadUserInfo();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          title: const Text(
-            'Lịch sử giao dịch',
-            style: TextStyle(fontSize: 18),
-          ),
-          centerTitle: true,
-          actions: [
-            Image.asset(
-              'assets/images/filter.png',
-              height: 25,
-              width: 25,
-              color: const Color(0xFF2669EC),
-            )
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
-        body: Column(
+        title: const Text(
+          'Lịch sử giao dịch',
+          style: TextStyle(fontSize: 18),
+        ),
+        centerTitle: true,
+        actions: [
+          Image.asset(
+            'assets/images/filter.png',
+            height: 25,
+            width: 25,
+            color: const Color(0xFF2669EC),
+          )
+        ],
+      ),
+      body: DefaultTabController(
+        length: 3,
+        child: Column(
           children: [
             Container(
-              width: 130,
+              width: 150,
               decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   color: const Color(0xFF0067F8)),
-              child: const Padding(
-                padding: EdgeInsets.all(4.0),
+              child: Padding(
+                padding: EdgeInsets.all(6.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '78293847',
+                      userInfo?.accountNumber ?? '',
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -57,7 +126,7 @@ class TransactionHistoryScreen extends StatelessWidget {
                     Icon(
                       Icons.keyboard_arrow_down,
                       color: Colors.white,
-                      size: 24,
+                      size: 26,
                     )
                   ],
                 ),
@@ -89,9 +158,11 @@ class TransactionHistoryScreen extends StatelessWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  TransactionListView(),
-                  const Center(child: Text('Chờ xử lý')),
-                  const Center(child: Text('Đặt lịch')),
+                  TransactionListView(
+                    time: widget.time,
+                  ),
+                  Center(child: Text('Chờ xử lý')),
+                  Center(child: Text('Đặt lịch')),
                 ],
               ),
             ),
@@ -103,8 +174,8 @@ class TransactionHistoryScreen extends StatelessWidget {
 }
 
 class TransactionListView extends StatefulWidget {
-  const TransactionListView({super.key});
-
+  TransactionListView({super.key, required this.time});
+  Time? time;
   @override
   _TransactionListViewState createState() => _TransactionListViewState();
 }
@@ -182,11 +253,78 @@ class _TransactionListViewState extends State<TransactionListView> {
         final groupedTransactions =
             groupTransactionsByDate(transactionBox.values.toList());
         final dates = groupedTransactions.keys.toList();
+        Future<void> showLoadingAnd(
+            BuildContext context, Time? time, ModalPay transaction) async {
+          print('object : ${time?.timeEnd}');
+          final randomDelay =
+              Random().nextInt(int.parse(time?.timeStart ?? '1000')) +
+                  int.parse(time?.timeEnd ?? '1000');
+
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) {
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.transparent,
+                    ),
+                  ),
+                  const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        RotatingAndScalingEffect(),
+                        Text(
+                          'Đang tải dữ liệu ...',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+
+          // Chờ trong thời gian ngẫu nhiên
+          await Future.delayed(Duration(milliseconds: randomDelay));
+
+          // Tắt hộp thoại loading
+          if (context.mounted) Navigator.of(context).pop();
+
+          // Chuyển đến TransactionHistoryScreen
+          if (context.mounted) {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 500),
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    Detail(transaction: transaction),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(0.0, 1.0); // Bắt đầu từ dưới
+                  const end = Offset.zero;
+                  const curve = Curves.ease;
+
+                  final tween = Tween(begin: begin, end: end)
+                      .chain(CurveTween(curve: curve));
+                  final offsetAnimation = animation.drive(tween);
+
+                  return SlideTransition(
+                    position: offsetAnimation,
+                    child: child,
+                  );
+                },
+              ),
+            );
+          }
+        }
 
         return Column(
           children: [
             Padding(
-              padding: EdgeInsets.only(top: 12, bottom: 8),
+              padding: const EdgeInsets.only(top: 12, bottom: 8),
               child: Text(
                 '30 ngày gần nhất',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
@@ -204,10 +342,10 @@ class _TransactionListViewState extends State<TransactionListView> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         date,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey),
+                            color: Colors.grey[600]),
                       ),
                     ),
                     sliver: SliverList(
@@ -215,7 +353,10 @@ class _TransactionListViewState extends State<TransactionListView> {
                         (context, index) {
                           final transaction = items[index];
                           return GestureDetector(
-                            onTap: () => navigateToDetail(context, transaction),
+                            onTap: () => transaction.category == '1'
+                                ? showLoadingAnd(
+                                    context, widget.time, transaction)
+                                : () {},
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Column(
@@ -228,17 +369,18 @@ class _TransactionListViewState extends State<TransactionListView> {
                                       Row(
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.all(3),
+                                            padding: const EdgeInsets.all(2),
                                             decoration: BoxDecoration(
                                                 borderRadius:
                                                     BorderRadius.circular(5),
                                                 color: const Color(0xFFF5F3FA)),
                                             child: transaction.category == '1'
-                                                ? Icon(Icons.arrow_downward,
-                                                    size: 18,
+                                                ? const Icon(
+                                                    Icons.arrow_downward,
+                                                    size: 16,
                                                     color: Colors.grey)
-                                                : Icon(Icons.arrow_upward,
-                                                    size: 18,
+                                                : const Icon(Icons.arrow_upward,
+                                                    size: 16,
                                                     color: Colors.green),
                                           ),
                                           Padding(
@@ -248,7 +390,7 @@ class _TransactionListViewState extends State<TransactionListView> {
                                               transaction.time.substring(0, 5),
                                               style: TextStyle(
                                                   fontSize: 16,
-                                                  color: Colors.grey[700]),
+                                                  color: Colors.grey[800]),
                                             ),
                                           ),
                                         ],
@@ -282,13 +424,14 @@ class _TransactionListViewState extends State<TransactionListView> {
                                           transaction.content,
                                           style: TextStyle(
                                               fontSize: 16,
-                                              color: Colors.grey[700]),
+                                              color: Colors.grey[800]),
                                         ),
                                       ),
-                                      const Icon(
-                                        Icons.more_horiz,
-                                        color: Colors.grey,
-                                      )
+                                      if (transaction.category == '1')
+                                        Icon(
+                                          Icons.more_horiz,
+                                          color: Colors.grey,
+                                        )
                                     ],
                                   ),
                                   Padding(

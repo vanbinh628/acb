@@ -1,12 +1,152 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter1/list.dart';
+import 'package:flutter1/main.dart';
 import 'package:flutter1/modal_pay_adapter.dart';
 
-class Detail extends StatelessWidget {
+class Detail extends StatefulWidget {
   const Detail({super.key, required this.transaction});
   final ModalPay transaction;
+
+  @override
+  State<Detail> createState() => _DetailState();
+}
+
+class _DetailState extends State<Detail> {
+  Future<void> showLoadingAndNavigate(BuildContext context) async {
+    // Thời gian delay ngẫu nhiên từ 1 đến 2 giây
+    final randomDelay = Random().nextInt(1000) + 1000; // Từ 1000ms -> 2000ms
+
+    // Hiển thị loading
+    showDialog(
+      context: context,
+      barrierDismissible:
+          false, // Không cho phép tắt loading bằng cách nhấn ra ngoài
+      builder: (context) {
+        return Stack(
+          children: [
+            // Nền che mờ
+            Positioned.fill(
+              child: Container(
+                color: Colors.transparent,
+              ),
+            ),
+            // Hiệu ứng loading
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  RotatingAndScalingEffect(),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Chờ trong thời gian ngẫu nhiên
+    await Future.delayed(Duration(milliseconds: randomDelay));
+
+    // Tắt hộp thoại loading
+    if (context.mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   showLoadingAndNavigate(context);
+    // });
+  }
+
   @override
   Widget build(BuildContext context) {
+    String _blockToWords(int block, List<String> units, List<String> tens) {
+      int hundreds = block ~/ 100;
+      int remainder = block % 100;
+      int tensPart = remainder ~/ 10;
+      int onesPart = remainder % 10;
+
+      String result = "";
+
+      if (hundreds > 0) {
+        result += "${units[hundreds]} trăm";
+        if (remainder != 0) {
+          result += " ";
+        }
+      }
+
+      if (tensPart > 0) {
+        result += tens[tensPart];
+        if (onesPart > 0) {
+          if (onesPart == 1 && tensPart > 1) {
+            result += " mốt";
+          } else if (onesPart == 5) {
+            result += " lăm";
+          } else {
+            result += " ${units[onesPart]}";
+          }
+        }
+      } else if (onesPart > 0) {
+        if (hundreds > 0) {
+          result += " lẻ ${units[onesPart]}";
+        } else {
+          result += units[onesPart];
+        }
+      }
+
+      return result.trim();
+    }
+
+    String numberToVietnameseWords(int number) {
+      const List<String> units = [
+        "",
+        "một",
+        "hai",
+        "ba",
+        "bốn",
+        "năm",
+        "sáu",
+        "bảy",
+        "tám",
+        "chín"
+      ];
+      const List<String> tens = [
+        "",
+        "mười",
+        "hai mươi",
+        "ba mươi",
+        "bốn mươi",
+        "năm mươi",
+        "sáu mươi",
+        "bảy mươi",
+        "tám mươi",
+        "chín mươi"
+      ];
+      const List<String> levels = ["", "nghìn", "triệu", "tỷ"];
+
+      if (number == 0) return "không đồng";
+
+      String result = "";
+      int levelIndex = 0;
+
+      while (number > 0) {
+        int block = number % 1000;
+        number ~/= 1000;
+
+        if (block > 0) {
+          String blockInWords = _blockToWords(block, units, tens);
+          result = "$blockInWords ${levels[levelIndex]} $result".trim();
+        }
+        levelIndex++;
+      }
+
+      return "$result đồng".trim();
+    }
+
     return Scaffold(
       body: Container(
         height: double.infinity,
@@ -34,23 +174,24 @@ class Detail extends StatelessWidget {
                     'Chuyển tiền thành công!',
                     style: TextStyle(
                       color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Text(
-                    '154.000 VND',
+                  Text(
+                    '${widget.transaction.tien} VND',
                     style: TextStyle(
                         color: Color(0xFF0067F8),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 24),
                   ),
-                  const Text(
-                    'Mười lăm nghìn đồng',
-                    style: TextStyle(fontSize: 12),
+                  Text(
+                    numberToVietnameseWords(
+                        int.parse(widget.transaction.tien.replaceAll('.', ''))),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Container(
                       width: double.infinity,
                       height: 1,
@@ -61,11 +202,14 @@ class Detail extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text(
-                        'Từ                   ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                      Container(
+                        width: MediaQuery.of(context).size.width / 4.3,
+                        child: Text(
+                          'Từ',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
                       Padding(
@@ -74,18 +218,18 @@ class Detail extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              transaction.nameFrom,
+                              widget.transaction.nameFrom,
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 16,
                                 color: Colors.black,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
-                              '83978937',
+                              widget.transaction.stkFrom,
                               style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
+                                fontSize: 15,
+                                color: Colors.grey[800],
                               ),
                             )
                           ],
@@ -100,11 +244,14 @@ class Detail extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text(
-                        'Đến                 ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                      Container(
+                        width: MediaQuery.of(context).size.width / 4.3,
+                        child: Text(
+                          'Đến',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
                       Padding(
@@ -112,26 +259,26 @@ class Detail extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'LUU GIAO BAO',
+                            Text(
+                              widget.transaction.nameTo,
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 16,
                                 color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const Text(
-                              'ACB - ksjsksk',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
-                              '83978937',
+                              widget.transaction.bank,
                               style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
+                                fontSize: 15,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            Text(
+                              widget.transaction.stkTo,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.grey[800],
                               ),
                             )
                           ],
@@ -140,7 +287,7 @@ class Detail extends StatelessWidget {
                     ],
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Container(
                       width: double.infinity,
                       height: 1,
@@ -151,21 +298,24 @@ class Detail extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text(
-                        'Chuyển lúc   ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                      Container(
+                        width: MediaQuery.of(context).size.width / 4.3,
+                        child: Text(
+                          'Chuyển lúc',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(left: 30),
                         child: Text(
-                          '18/11/2024, 12:45:31',
+                          '${widget.transaction.date}, ${widget.transaction.time}',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.black,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -178,11 +328,14 @@ class Detail extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text(
-                        'Phí                    ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                      Container(
+                        width: MediaQuery.of(context).size.width / 4.3,
+                        child: Text(
+                          'Phí',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
                       const Padding(
@@ -190,9 +343,9 @@ class Detail extends StatelessWidget {
                         child: Text(
                           'Miễn phí',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.black,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -205,28 +358,31 @@ class Detail extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      Text(
-                        'Mã giao dịch',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                      Container(
+                        width: MediaQuery.of(context).size.width / 4.3,
+                        child: Text(
+                          'Mã giao dịch',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[700],
+                          ),
                         ),
                       ),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(left: 30),
-                        child: const Text(
-                          '2664',
+                        child: Text(
+                          widget.transaction.barCode,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             color: Colors.black,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ],
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Container(
                       width: double.infinity,
                       height: 1,
@@ -236,15 +392,15 @@ class Detail extends StatelessWidget {
                   Text(
                     'Nội dung',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       color: Colors.grey[700],
                     ),
                   ),
                   Text(
-                    'Nội dungsfhjsdjklhflsdakjhfkladsjhflkadjflkadsjflaksdjfaskljdflaksjfdalskjdfalksjdakl;djf',
+                    widget.transaction.content,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey[800],
+                      color: Colors.grey[900],
                     ),
                   ),
                 ],

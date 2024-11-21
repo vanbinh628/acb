@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter1/modal_pay_adapter.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
 
 class EditScreen extends StatefulWidget {
   const EditScreen({super.key});
@@ -189,6 +190,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: ListView(
             children: [
               TextFormField(
+                textCapitalization: TextCapitalization.characters,
                 controller: _nameToController,
                 decoration: const InputDecoration(labelText: 'Tên người nhận'),
                 validator: (value) {
@@ -199,6 +201,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
               ),
               TextFormField(
+                textCapitalization: TextCapitalization.characters,
                 controller: _nameFromController,
                 decoration: const InputDecoration(labelText: 'Tên người gửi'),
                 validator: (value) {
@@ -210,7 +213,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
               TextFormField(
                 controller: _amountController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'Số tiền'),
+                onChanged: (value) {
+                  // Xóa dấu "." trước khi xử lý
+                  String newValue = value.replaceAll('.', '');
+                  if (newValue.isNotEmpty) {
+                    // Định dạng lại giá trị với dấu "."
+                    final formatter = NumberFormat(
+                        '#,##0', 'vi_VN'); // Sử dụng vi_VN để đảm bảo dấu "."
+                    String formattedValue =
+                        formatter.format(int.parse(newValue));
+
+                    // Cập nhật lại giá trị vào controller
+                    _amountController.value = TextEditingValue(
+                      text: formattedValue,
+                      selection: TextSelection.collapsed(
+                          offset: formattedValue.length),
+                    );
+                  }
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Vui lòng nhập số tiền';
@@ -220,10 +242,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
               TextFormField(
                 controller: _dateController,
+                readOnly: true,
                 decoration: const InputDecoration(labelText: 'Ngày'),
+                onTap: () async {
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+
+                  if (pickedDate != null) {
+                    setState(() {
+                      _dateController.text =
+                          DateFormat('dd/MM/yyyy').format(pickedDate);
+                    });
+                  }
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Vui lòng nhập ngày';
+                    return 'Vui lòng chọn ngày';
                   }
                   return null;
                 },
@@ -235,10 +273,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Vui lòng nhập thời gian';
                   }
-                  return null;
+
+                  // Biểu thức chính quy kiểm tra định dạng HH:mm:ss
+                  RegExp timeRegExp =
+                      RegExp(r'^([01]?\d|2[0-3]):([0-5]?\d):([0-5]?\d)$');
+                  if (!timeRegExp.hasMatch(value)) {
+                    return 'Vui lòng nhập đúng định dạng HH:mm:ss';
+                  }
+
+                  return null; // Hợp lệ
                 },
+                keyboardType: TextInputType
+                    .datetime, // Hiển thị bàn phím nhập số và ký tự :
               ),
               TextFormField(
+                keyboardType: TextInputType.number,
                 controller: _stkFromController,
                 decoration:
                     const InputDecoration(labelText: 'Số tài khoản người gửi'),
@@ -250,6 +299,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
               ),
               TextFormField(
+                keyboardType: TextInputType.number,
                 controller: _stlToController,
                 decoration:
                     const InputDecoration(labelText: 'Số tài khoản người nhận'),
@@ -261,6 +311,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
               ),
               TextFormField(
+                textCapitalization: TextCapitalization.characters,
                 controller: _bankController,
                 decoration: const InputDecoration(
                     labelText: 'Ngân hàng người nhận hoặc gửi'),
@@ -273,6 +324,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
               TextFormField(
                 controller: _barCodeController,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'Mã giao dịch'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -282,6 +334,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
               ),
               TextFormField(
+                textCapitalization: TextCapitalization.characters,
                 controller: _contentController,
                 decoration:
                     const InputDecoration(labelText: 'Nội dung giao dịch'),
@@ -398,12 +451,154 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             children: [
               // Các trường nhập liệu (giống AddTransactionScreen)
               TextFormField(
+                textCapitalization: TextCapitalization.characters,
                 controller: _nameToController,
                 decoration: const InputDecoration(labelText: 'Tên người nhận'),
                 validator: (value) =>
                     value!.isEmpty ? 'Vui lòng nhập tên người nhận' : null,
               ),
-              // Các trường khác...
+              TextFormField(
+                textCapitalization: TextCapitalization.characters,
+                controller: _nameFromController,
+                decoration: const InputDecoration(labelText: 'Tên người gửi'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập tên người gửi';
+                  }
+                  return null;
+                },
+              ),
+
+              TextFormField(
+                controller: _dateController,
+                readOnly: true,
+                decoration: const InputDecoration(labelText: 'Ngày'),
+                onTap: () async {
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+
+                  if (pickedDate != null) {
+                    setState(() {
+                      _dateController.text =
+                          DateFormat('dd/MM/yyyy').format(pickedDate);
+                    });
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng chọn ngày';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _timeController,
+                decoration: const InputDecoration(labelText: 'Thời gian'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập thời gian';
+                  }
+
+                  // Biểu thức chính quy kiểm tra định dạng HH:mm:ss
+                  RegExp timeRegExp =
+                      RegExp(r'^([01]?\d|2[0-3]):([0-5]?\d):([0-5]?\d)$');
+                  if (!timeRegExp.hasMatch(value)) {
+                    return 'Vui lòng nhập đúng định dạng HH:mm:ss';
+                  }
+
+                  return null; // Hợp lệ
+                },
+                keyboardType: TextInputType
+                    .datetime, // Hiển thị bàn phím nhập số và ký tự :
+              ),
+
+              TextFormField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Số tiền'),
+                onChanged: (value) {
+                  String newValue = value.replaceAll('.', '');
+                  if (newValue.isNotEmpty) {
+                    final formatter = NumberFormat('#,##0', 'vi_VN');
+                    String formattedValue =
+                        formatter.format(int.parse(newValue));
+                    _amountController.value = TextEditingValue(
+                      text: formattedValue,
+                      selection: TextSelection.collapsed(
+                          offset: formattedValue.length),
+                    );
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập số tiền';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                keyboardType: TextInputType.number,
+                controller: _stkFromController,
+                decoration:
+                    const InputDecoration(labelText: 'Số tài khoản người gửi'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập số tài khoản người gửi';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                keyboardType: TextInputType.number,
+                controller: _stkToController,
+                decoration:
+                    const InputDecoration(labelText: 'Số tài khoản người nhận'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập số tài khoản người nhận';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _bankController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                    labelText: 'Ngân hàng người nhận hoặc gửi'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập ngân hàng';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                keyboardType: TextInputType.number,
+                controller: _barCodeController,
+                decoration: const InputDecoration(labelText: 'Mã giao dịch'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập mã giao dịch';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                textCapitalization: TextCapitalization.characters,
+                controller: _contentController,
+                decoration:
+                    const InputDecoration(labelText: 'Nội dung giao dịch'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập nội dung giao dịch';
+                  }
+                  return null;
+                },
+              ),
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
                 decoration: const InputDecoration(labelText: 'Loại giao dịch'),
