@@ -510,7 +510,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                     return 'Vui lòng nhập đúng định dạng HH:mm:ss';
                   }
 
-                  return null; // Hợp lệ
+                  return null; // Hợp l
                 },
                 keyboardType: TextInputType
                     .datetime, // Hiển thị bàn phím nhập số và ký tự :
